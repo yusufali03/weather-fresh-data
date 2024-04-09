@@ -1,36 +1,47 @@
 <?php
- include 'connection.php';
- if(isset($_GET['city'])){
- $city = $_GET["city"];
+include 'connection.php';
 
- $url ="https://api.openweathermap.org/data/2.5/weather?q=".$city."&appid=52fa4270c6cde90aae1224c3f5746413&units=metric";
- $data = @file_get_contents($url);
- if ($data === FALSE) {
-   new Error( "Error city fetching");
- }
- $data = json_decode($data, true);
- $city = $data['name'];
- $temp =$data["main"]["temp"];
- $weatherType =$data["weather"][0]["main"];
- 
+if (isset($_GET['city'])) {
+    $city = $_GET["city"];
 
- $fetch_query = "SELECT * FROM weather_db WHERE city = '{$city}' AND weather_when >= DATE_SUB(NOW(),INTERVAL 1000 SECOND) ORDER BY weather_when DESC LIMIT 1";
- $result = mysqli_query($con,$fetch_query)->num_rows;
- if($result == 0) {
-    $insert_query = "INSERT INTO weather_db(city,temp, weather_type,weather_when) VALUES('{$city}', '{$temp}', '{$weatherType}', NOW())";
-    $r = mysqli_query($con,$insert_query);
- }
- $query_main = "SELECT * FROM weather_db WHERE city = '{$city}' AND weather_when >= DATE_SUB(NOW(),INTERVAL 1000 SECOND) ORDER BY weather_when DESC LIMIT 1";
- $result_main = mysqli_query($con,$query_main);
- $main_data = [];
- while($row_main = mysqli_fetch_assoc($result_main)){
-  $main_data[] = $row_main;
- }
-$c = $main_data[0]['city'];
-$t = $main_data[0]['temp'];
-$des = $main_data[0]['weather_type'];
-$date_from_db = $main_data[0]['weather_when'];
- }
+    $url = "https://api.openweathermap.org/data/2.5/weather?q=" . $city . "&appid=52fa4270c6cde90aae1224c3f5746413&units=metric";
+    $data = @file_get_contents($url);
+
+    if ($data === FALSE) {
+        http_response_code(500); // Internal Server Error
+        exit(json_encode(array("error" => "Error fetching city data")));
+    }
+
+    $data = json_decode($data, true);
+    $city = $data['name'];
+    $temp = $data["main"]["temp"];
+    $weatherType = $data["weather"][0]["main"];
+
+    $fetch_query = "SELECT * FROM weather_db WHERE city = '{$city}' AND weather_when >= DATE_SUB(NOW(),INTERVAL 1000 SECOND) ORDER BY weather_when DESC LIMIT 1";
+    $result = mysqli_query($con, $fetch_query)->num_rows;
+
+    if ($result == 0) {
+        $insert_query = "INSERT INTO weather_db(city,temp, weather_type,weather_when) VALUES('{$city}', '{$temp}', '{$weatherType}', NOW())";
+        $r = mysqli_query($con, $insert_query);
+    }
+
+    $query_main = "SELECT * FROM weather_db WHERE city = '{$city}' AND weather_when >= DATE_SUB(NOW(),INTERVAL 1000 SECOND) ORDER BY weather_when DESC LIMIT 1";
+    $result_main = mysqli_query($con, $query_main);
+    $main_data = [];
+    while ($row_main = mysqli_fetch_assoc($result_main)) {
+        $main_data[] = $row_main;
+    }
+    $response = [
+        'city' => $main_data[0]['city'],
+        'temp' => $main_data[0]['temp'],
+        'weather_type' => $main_data[0]['weather_type'],
+        'weather_when' => $main_data[0]['weather_when']
+    ];
+    header('Content-Type: application/json');
+    echo json_encode($response);
+    exit();
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -109,23 +120,21 @@ $date_from_db = $main_data[0]['weather_when'];
      }
   </style>
 <body>
+
     <div class="container">
-            <form>  
-                <input type="text" name="city" id="search" spellcheck="false" placeholder="Enter city name" >
-                <button type="submit" id="submit" class="button" >search</button>
-            </form>
-    <div class="infos">
-
-        <h1 class="city">City: <?php echo isset($c) ? $c:" " ?></h1>
-        <h1 class="temp">Temperature: <?php echo isset($t) ? $t . "C":" " ?></h1>
-        
-        <h1 class="des" >Description: <?php echo isset($des) ? $des:" " ?></h1>
-        <h1 class="date" >Date: <?php echo isset($date_from_db) ? $date_from_db:" " ?></h1>
-    </div>
-    
+        <form>  
+            <input type="text" name="city" id="search" spellcheck="false" placeholder="Enter city name">
+            <button type="submit" id="submit" class="button">Search</button>
+        </form>
+        <div class="infos">
+            <h1 class="city">City: <span id="city"></span></h1>
+            <h1 class="temp">Temperature: <span id="temp"></span></h1>
+            <h1 class="des">Description: <span id="des"></span></h1>
+            <h1 class="date">Date: <span id="date"></span></h1>
+        </div>
     </div>
 
 
-    <!-- <script src="script.js" ></script> -->
+    <script src="script.js" ></script>
 </body>
 </html>
